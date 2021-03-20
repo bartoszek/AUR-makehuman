@@ -1,53 +1,36 @@
 # Maintainer: Lukas Jirkovsky <l.jirkovsky@gmail.com>
 pkgname=makehuman
-pkgver=1.1.1
-pkgrel=2
+pkgver=1.2.0
+pkgrel=1
 pkgdesc="Parametrical modeling program for creating human bodies"
 arch=('any')
 url="http://www.makehumancommunity.org/"
-depends=('python2-numpy' 'python2-pyqt4' 'python2-opengl')
-makedepends=('mercurial')
 license=('AGPL3')
-source=("hg+https://bitbucket.org/MakeHuman/makehuman#tag=$pkgver"
-        "fix_1184.diff::https://bitbucket.org/MakeHuman/makehuman/commits/deca8874422de7487384393cd71e914910ca658e/raw"
+depends=('python' 'python-numpy' 'python-pyqt5' 'python-opengl' 'qt5-svg')
+source=("https://github.com/makehumancommunity/makehuman/archive/v${pkgver}.tar.gz"
         "makehuman.desktop" "makehuman.sh")
-md5sums=('SKIP'
-         '1ca34e5592761312eb6dec4eb1f9b589'
-         'f54fdfbc6c783effc4624808d2547563'
-         '534db191b7c6cd5cf976c9a7089b524c')
-
-prepare() {
-  cd "$srcdir/makehuman"
-
-  # make sure that we are using python2
-  find . -type f -name "*.py" -exec sed -i 's/^#!.*python$/&2/' '{}' ';'
-  sed -i 's|python"|python2"|' buildscripts/build_prepare.py
-
-  rm -rf "$srcdir/build"
-}
+sha256sums=('df6904f1b5a78acfa8363f2b2a3b8fcf9c83c0b321475e39408f802461beb16b'
+            '17b97857ae3f14a0375a7e5ef7be59699f442eeb926204ff53d8e629efc73755'
+            '18c100d2691b4bfdb45acaecbbdf4cc1623b0d064c549c53c212996cb94a1508')
 
 build() {
-  cd "$srcdir/makehuman/buildscripts"
-  python2 build_prepare.py "$srcdir/makehuman" "$srcdir/build"
+	cd "$srcdir/${pkgname}-${pkgver}/makehuman"
 
-  cd "$srcdir/build"
-  # make sure that we are using python2 once again, because the build_prepare.py may have donwloaded some new files
-  find . -type f -name "*.py" -exec sed -i 's/^#!.*python$/&2/' '{}' ';'
-  # fix upstream bug #1184 (Export not working with numpy 1.13), this must be done after build_prepare.py (see above)
-  patch -Np1 < "$srcdir/fix_1184.diff"
-
-  cd "$srcdir/build/makehuman"
-  # compile all modules so that they can be tracked by pacman
-  python2 -m compileall .
-  # and also optimize them
-  python2 -OO -m compileall .
+	# Build as detailed on readme
+	python download_assets_git.py
+	python compile_models.py
+	python compile_proxies.py
+	python compile_targets.py
 }
 
 package() {
-  install -d -m755 "$pkgdir/opt/"
-  cp -a "$srcdir/build/makehuman" "$pkgdir/opt/"
+	cd "$srcdir/${pkgname}-${pkgver}"
 
-  install -D -m644 "$srcdir/build/makehuman/icons/makehuman.png" "$pkgdir/usr/share/pixmaps/makehuman.png"
-  install -D -m755 "$srcdir/$pkgname.sh" "$pkgdir/usr/bin/$pkgname"
-  install -D -m644 "$srcdir/$pkgname.desktop" "$pkgdir/usr/share/applications/$pkgname.desktop"
+	# No standard UNIX structure so install in opt
+	install -d -m755 "$pkgdir/opt/makehuman"
+	cp -R makehuman/* "$pkgdir/opt/makehuman"
+
+	# Creates a symlink to the binary
+	install -d m755 "$pkgdir/usr/bin"
+	ln -s "/opt/makehuman/makehuman.py" "$pkgdir/usr/bin/makehuman"
 }
